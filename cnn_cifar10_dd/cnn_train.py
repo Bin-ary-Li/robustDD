@@ -174,7 +174,7 @@ def main():
         max_epochs=max_epoch,
         accelerator="auto",
         logger=logger,
-        gpus=1)
+        devices=1)
     
     if (resume_ckpt == ''):
         trainer.fit(litmod, trainloader, testloader)
