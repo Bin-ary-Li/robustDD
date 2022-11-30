@@ -12,6 +12,8 @@ double-descent/
 
 # Log files
 logs/
+*.pt
+*.ckpt
 
 # Distribution / packaging
 .Python
