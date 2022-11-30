@@ -10,6 +10,9 @@ __pycache__/
 data/
 double-descent/
 
+# Log files
+logs/
+
 # Distribution / packaging
 .Python
 build/
