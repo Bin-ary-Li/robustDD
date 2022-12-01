@@ -10,9 +10,10 @@ import argparse
 # define the LightningModule
 class LitDensenet(pl.LightningModule):
     ''' Returns a Densenet121 with growth parameter k. '''
-    def __init__(self, trainset, testsets, testset_names, 
+    def __init__(self, trainset, testsets, testset_names, num_workers=2, 
                 k=32, num_classes=10, lr=1e-4, train_batch_size=256, test_batch_size=256):
         super().__init__()
+        self.num_workers = num_workers
         self.trainset = trainset
         self.testsets = testsets
         self.testset_names = testset_names
@@ -24,7 +25,7 @@ class LitDensenet(pl.LightningModule):
     def train_dataloader(self):
         train_loader=  get_train_loader("standard", self.trainset, 
                                 batch_size=self.train_batch_size,
-                                num_workers=8, pin_memory=True)
+                                num_workers=self.num_workers, pin_memory=True)
         return train_loader
     
     def val_dataloader(self):
@@ -32,7 +33,7 @@ class LitDensenet(pl.LightningModule):
         for dataset in self.testsets:
             loader = get_eval_loader("standard", dataset, 
                                 batch_size=self.test_batch_size,
-                                num_workers=8, pin_memory=True)
+                                num_workers=self.num_workers, pin_memory=True)
             val_loaders.append(loader)
         return val_loaders
 
@@ -119,6 +120,7 @@ def doArgs():
     parser.add_argument('--hparam', type=int, help="hparameter of model complexity, control densenet growth rate", required=True)
     parser.add_argument('--epoch', type=int, help="max number of epoch to run, default 10", default=10)
     parser.add_argument('--resumeckpt', type=str, help='path of model checkpoint to resume', default='')
+    parser.add_argument('--worker', type=int, help="number of workers for dataloader, more workers need more memory, default 2", default=2)
     parser.add_argument('--loadnoisydata', type=str, help='load train data that has noisy label (to guarantee reproducibility when resume training)', default='')
     return parser.parse_args()
 
@@ -134,6 +136,7 @@ def main():
     n_cls = args.cls
     dataset = args.dataset.lower()
     label_noise = args.noise
+    num_worker = args.worker
     resume_ckpt = args.resumeckpt
     noisy_data_path = args.loadnoisydata
     save_path = args.savepath
@@ -170,7 +173,7 @@ def main():
     test_datasets = [test_data, val_data, id_val_data]
     test_split_names = ['test', 'val', 'idval']
 
-    model = LitDensenet(train_data, test_datasets, test_split_names, 
+    model = LitDensenet(train_data, test_datasets, test_split_names, num_worker=num_worker,
                         k=growth_rate, num_classes=n_cls, lr=lr, train_batch_size=batch_size,
                         test_batch_size=batch_size)
 
