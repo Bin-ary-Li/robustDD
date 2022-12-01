@@ -173,7 +173,7 @@ def main():
     test_datasets = [test_data, val_data, id_val_data]
     test_split_names = ['test', 'val', 'idval']
 
-    model = LitDensenet(train_data, test_datasets, test_split_names, num_worker=num_worker,
+    model = LitDensenet(train_data, test_datasets, test_split_names, num_workers=num_worker,
                         k=growth_rate, num_classes=n_cls, lr=lr, train_batch_size=batch_size,
                         test_batch_size=batch_size)
 
