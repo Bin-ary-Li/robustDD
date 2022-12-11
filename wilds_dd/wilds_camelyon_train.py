@@ -6,6 +6,9 @@ from torchvision.models import DenseNet
 import torch
 import pytorch_lightning as pl
 import argparse
+import numpy as np
+import pandas as pd
+import os
 
 # define the LightningModule
 class LitDensenet(pl.LightningModule):
@@ -102,14 +105,16 @@ class LitDensenet(pl.LightningModule):
         optimizer = torch.optim.Adam(self.parameters(), lr=self.lr)
         return optimizer
 
-# def generate_noisy_label(labels, p, n_cls):
-#     noisy_targets = labels.copy()
-#     for i, target in enumerate(labels):
-#         if np.random.random_sample() <= p:
-#             incorrect_labels = [i for i in range(n_cls) if i != target]
-#             np.random.shuffle(incorrect_labels)
-#             noisy_targets[i] = incorrect_labels[0]
-#     return noisy_targets
+def add_noise_to_metadata(csv_path, p):
+    # add label noise to train data
+    metadata = pd.read_csv(csv_path, 
+                            index_col=0,
+                            dtype={'patient': 'str'})
+    y_arr = metadata[metadata['split'] == 0]['tumor'].to_numpy() # training split
+    flip_loc = np.random.choice([True,False], len(y_arr), p=[p, 1-p])
+    noisy_y = np.logical_not(y_arr, where = flip_loc, out=y_arr.copy())
+    metadata.loc[metadata['split']==0, 'tumor'] = noisy_y
+    metadata.to_csv(csv_path)
 
 def doArgs():
     parser = argparse.ArgumentParser(description='parameters for Double Decent')
@@ -138,11 +143,24 @@ def main():
     label_noise = args.noise
     num_worker = args.worker
     resume_ckpt = args.resumeckpt
-    noisy_data_path = args.loadnoisydata
+    # noisy_data_path = args.loadnoisydata
     save_path = args.savepath
 
     # Load the full dataset, and download it if necessary
     dataset = get_dataset(dataset=dataset, download=True)
+
+    # If adding noise to the training data
+    if label_noise > 0:
+        abspath = os.path.abspath('.')
+        noisy_data_path = os.path.join(abspath, f'noisy_data_{label_noise}')
+        if not os.path.exists(noisy_data_path):
+            print('Noisy dataset not found, creating noisy dataset...')
+            os.mkdir(noisy_data_path)
+            os.system(f'cp -R {abspath}/data/camelyon17_v1.0 {noisy_data_path}/camelyon17_v1.0')
+        metadata_file = os.path.join(noisy_data_path, 'camelyon17_v1.0/metadata.csv')
+        add_noise_to_metadata(metadata_file, label_noise)
+        dataset = get_dataset(dataset="camelyon17", download=False, root_dir=noisy_data_path)
+
 
     trans = transforms.Compose(
             [transforms.ToTensor()]
@@ -194,12 +212,6 @@ def main():
     #         os.makedirs(logger.root_dir)
     #         torch.save(trainset, os.path.join(logger.root_dir, 'noisy_train.pt'))
 
-
-    # trainloader = torch.utils.data.DataLoader(trainset, batch_size=batch_size,
-    #                                     shuffle=True, num_workers=2)
-
-    # testloader = torch.utils.data.DataLoader(testset, batch_size=batch_size,
-    #                                     shuffle=False, num_workers=2)
 
     trainer = pl.Trainer(
         max_epochs=max_epoch,

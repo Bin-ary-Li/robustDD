@@ -9,6 +9,7 @@ __pycache__/
 # Data dir
 data/
 double-descent/
+noisy_data*/
 
 # Log files
 logs/
