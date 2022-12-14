@@ -159,8 +159,12 @@ class RandAugment:
         img = Cutout(img, cutout_val)
         return img
 
+class Flatten(nn.Module):
+    def forward(self, x): 
+        return x.view(x.size(0), x.size(1))
+
 def make_cnn(c=64, num_classes=10):
-    ''' Returns a 5-layer CNN with width parameter c. '''
+    ''' Returns a 6-layer CNN with width parameter c. '''
     return nn.Sequential(
         # Layer 0
         nn.Conv2d(3, c, kernel_size=3, stride=1,
@@ -190,9 +194,16 @@ def make_cnn(c=64, num_classes=10):
         nn.MaxPool2d(2),
 
         # Layer 4
+        nn.Conv2d(c*8, c*16, kernel_size=3,
+                  stride=1, padding=1, bias=True),
+        nn.BatchNorm2d(c*16),
+        nn.ReLU(),
+        nn.MaxPool2d(2),
+
+        # Layer 5
         nn.MaxPool2d(4),
         Flatten(),
-        nn.Linear(c*8, num_classes, bias=True)
+        nn.Linear(c*16, num_classes, bias=True)
     )
 
 # define the LightningModule
@@ -356,16 +367,19 @@ def main():
 
     if is_augment == 1:
         train_trans = transforms.Compose(
-                [RandAugment(2, FIX_MATCH_AUGMENTATION_POOL),
+                [
+                RandAugment(2, FIX_MATCH_AUGMENTATION_POOL),
                 transforms.ToTensor()]
             )
     else:
         train_trans = transforms.Compose(
-            [transforms.ToTensor()]
+            [
+            transforms.ToTensor()]
         )
 
     trans = transforms.Compose(
-            [transforms.ToTensor()]
+            [
+            transforms.ToTensor()]
         )
 
     train_data = dataset.get_subset(
