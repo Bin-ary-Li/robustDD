@@ -4,6 +4,7 @@ from wilds.common.data_loaders import get_eval_loader
 import torchvision.transforms as transforms
 from torchvision.models import DenseNet
 import torch
+import torch.nn as nn
 import pytorch_lightning as pl
 import argparse
 import numpy as np
@@ -158,11 +159,48 @@ class RandAugment:
         img = Cutout(img, cutout_val)
         return img
 
+def make_cnn(c=64, num_classes=10):
+    ''' Returns a 5-layer CNN with width parameter c. '''
+    return nn.Sequential(
+        # Layer 0
+        nn.Conv2d(3, c, kernel_size=3, stride=1,
+                  padding=1, bias=True),
+        nn.BatchNorm2d(c),
+        nn.ReLU(),
+
+        # Layer 1
+        nn.Conv2d(c, c*2, kernel_size=3,
+                  stride=1, padding=1, bias=True),
+        nn.BatchNorm2d(c*2),
+        nn.ReLU(),
+        nn.MaxPool2d(2),
+
+        # Layer 2
+        nn.Conv2d(c*2, c*4, kernel_size=3,
+                  stride=1, padding=1, bias=True),
+        nn.BatchNorm2d(c*4),
+        nn.ReLU(),
+        nn.MaxPool2d(2),
+
+        # Layer 3
+        nn.Conv2d(c*4, c*8, kernel_size=3,
+                  stride=1, padding=1, bias=True),
+        nn.BatchNorm2d(c*8),
+        nn.ReLU(),
+        nn.MaxPool2d(2),
+
+        # Layer 4
+        nn.MaxPool2d(4),
+        Flatten(),
+        nn.Linear(c*8, num_classes, bias=True)
+    )
+
 # define the LightningModule
 class LitDensenet(pl.LightningModule):
-    ''' Returns a Densenet121 with growth parameter k. '''
+    ''' Returns a Densenet121 with complexity parameter k. '''
     def __init__(self, trainset, testsets, testset_names, num_workers=2, 
-                k=32, num_classes=10, lr=1e-4, train_batch_size=256, test_batch_size=256):
+                k=32, num_classes=10, lr=1e-4, train_batch_size=256, test_batch_size=256,
+                model='densenet'):
         super().__init__()
         self.num_workers = num_workers
         self.trainset = trainset
@@ -170,7 +208,10 @@ class LitDensenet(pl.LightningModule):
         self.testset_names = testset_names
         self.train_batch_size = train_batch_size
         self.test_batch_size = test_batch_size
-        self.model = DenseNet(growth_rate=k, num_classes=num_classes)
+        if model == 'densenet':
+            self.model = DenseNet(growth_rate=k, num_classes=num_classes)
+        else:
+            self.model = make_cnn(c=k, num_classes=num_classes)
         self.lr = lr
 
     def train_dataloader(self):
@@ -271,7 +312,8 @@ def doArgs():
     parser.add_argument('--noise', type=float, help='making the training label noisy, NO SUPPORTED for now!', default=0)
     parser.add_argument('--savepath', type=str, help="save path for log and model checkpoint, default to ./logs", default='logs')
     parser.add_argument('--cls', type=int, help="num of classes", required=True)
-    parser.add_argument('--hparam', type=int, help="hparameter of model complexity, control densenet growth rate", required=True)
+    parser.add_argument('--model', type=str, help="which model to use, support: densenet, cnn", default='densenet')
+    parser.add_argument('--hparam', type=int, help="hparameter of model complexity, e.g. control densenet growth rate", required=True)
     parser.add_argument('--epoch', type=int, help="max number of epoch to run, default 10", default=10)
     parser.add_argument('--resumeckpt', type=str, help='path of model checkpoint to resume', default='')
     parser.add_argument('--worker', type=int, help="number of workers for dataloader, more workers need more memory, default 2", default=2)
@@ -295,6 +337,7 @@ def main():
     resume_ckpt = args.resumeckpt
     # noisy_data_path = args.loadnoisydata
     save_path = args.savepath
+    model_name = args.model
 
     # Load the full dataset, and download it if necessary
     dataset = get_dataset(dataset=dataset, download=True)
@@ -352,10 +395,10 @@ def main():
 
     model = LitDensenet(train_data, test_datasets, test_split_names, num_workers=num_worker,
                         k=growth_rate, num_classes=n_cls, lr=lr, train_batch_size=batch_size,
-                        test_batch_size=batch_size)
+                        test_batch_size=batch_size, model=model_name)
 
     logger = pl.loggers.CSVLogger('logs', 
-                            name=f"densenet_width{growth_rate}_noise{label_noise}_randaug{is_augment}")
+                            name=f"complexity{growth_rate}_noise{label_noise}_randaug{is_augment}_{model_name}")
 
     # # check if want to resume training
     # if (resume_ckpt != ''):

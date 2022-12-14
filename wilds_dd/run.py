@@ -11,6 +11,7 @@ def doArgs():
     parser.add_argument('--hparam', type=str, help="hparameter of model complexity, control densenet growth rate, if pass multiple one use comma to seperate", required=True)
     parser.add_argument('--savepath', type=str, help="save path for log and model checkpoint, default to ./logs", default='logs')
     parser.add_argument('--epoch', type=int, help="max number of epoch to run, default 10", default=10)
+    parser.add_argument('--model', type=str, help="which model to use, support: densenet, cnn", default='densenet')
     parser.add_argument('--noise', type=float, help="add label noise, 0 means no noise and 1 is all noise", default=0)
     parser.add_argument('--worker', type=int, help="number of worker", default=2)
     return parser.parse_args()
@@ -35,7 +36,7 @@ def main():
     worker = args.worker
 
     for i in hparam:
-        command = f'python {path} --dataset {dataset} --cls {n_cls} --hparam {i} --savepath {savepath} --epoch {epoch} --noise {noise} --worker {worker} --randaugment {args.randaugment}'
+        command = f'python {path} --dataset {dataset} --cls {n_cls} --hparam {i} --savepath {savepath} --epoch {epoch} --noise {noise} --worker {worker} --randaugment {args.randaugment} --model {args.model}'
         os.system(command)
 
 
