@@ -1,6 +1,7 @@
 # Fair and Robust Algorithm Project
 
-robust double descent experiments
+Robust Double Descent Experiments
+This repo is managed by Bin Li and Enze Chen.
 
 ## Report is located in  CMOS6998_FRA_Final_Report.pdf
 ## Training and Obtain Results
